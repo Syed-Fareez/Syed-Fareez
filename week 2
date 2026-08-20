@@ -1,0 +1,382 @@
+PENETRATION TESTING REPORT
+FOOTPRINTING & NETWORK SCANNING PHASES
+W2-PM-FINAL | CYBERSECURITY |  NETWORKWALKS
+
+Pentester Name
+(Cybersecurity Professional)
+Emmanuel John
+Program/Batch
+B082-Networkwalks
+Date
+17 August 2026
+Modules completed
+W2-PM1 (Multiple Kali Tools)
+W2-PM5 (Zenmap Scanning)
+Client/Target
+1. Networkwalks (secured written permission already)
+2. My own local LAN Network
+Permission secured from client?
+Yes
+Phases covered
+Phase 1: Reconnaissance & Footprinting
+Phase 2: Scanning & Network Discovery
+Phase 3-5: In Progress
+
+
+
+
+
+1. Liability Disclaimer
+I have performed these activities only on the systems & devices where I had secured written permission or the devices/systems that I own myself. All these materials are for education and research purpose only. Do not use anything from here to break the law. The instructor, the authors and Networkwalks are not responsible for what you do with this knowledge. Every action you take is your own responsibility. Misuse can lead to criminal charges, heavy fines, loss of your job and a permanent record. In most countries unauthorised access is a crime even when nothing is damaged.
+
+2. Introduction
+This report covers footprinting the networkwalks.com domain using multiple Kali Linux tools (W2-PM1) and scanning my own local network with Zenmap (W2-PM5). One module covers the footprinting phase and the other covers the scanning phase, so together they show how an attacker moves from gathering public information to mapping live hosts on a network. It is the Week 2 part of my ongoing internship program at Networkwalks.
+All commands were run in Kali Linux (footprinting) and on a Windows PC with Zenmap installed (scanning). Every step below includes the exact command used, the result I observed, a screenshot as evidence, and a short note on why the finding matters from an attacker's point of view.
+
+
+3. Tools Used
+The table below lists each tool used in this report and its purpose.
+Tool
+Purpose
+Kali Linux & Windows
+Operating systems used for reconnaissance activities
+WHOIS
+Find domain registration details (owner, dates, name servers).
+whatweb
+Fingerprint web technologies (server, CMS, plugins, IP).
+nslookup
+Resolve the domain name to its IP address using DNS.
+curl -I
+Read the HTTP response headers of the website.
+wafw00f
+Detect whether a Web Application Firewall protects the site.
+dnsrecon
+Enumerate all DNS records (NS, MX, SPF, TXT, SRV).
+Zenmap (Nmap GUI)
+Scan the local subnet to find live hosts, IPs and MAC addresses.
+Windows CMD
+Local IP and MAC address identification
+
+
+4. Activities Performed
+4.1 Footprinting & Reconnaissance
+
+I performed reconnaissance against the networkwalks.com domain using six Kali Linux tools: WHOIS, WhatWeb, Nslookup, Curl, Wafw00f and DNSRecon. Each tool was used to collect a different type of information about the target.
+First, I used WHOIS to obtain publicly available domain registration information and identify the domain’s name servers. The results provided information about the domain registration and hosting infrastructure.
+I then used WhatWeb to identify technologies used by the website. The results identified WordPress 7.0.4 and WP Download Manager 3.3.58, along with other information exposed by the website.
+Using Nslookup, I resolved the domain name to its IP address. The provided result identified 192.232.216.135.
+I used Curl with the -I option to inspect the HTTP response headers. This provided additional information about the web application and exposed the WordPress REST API endpoint /wp-json/.
+Next, I used Wafw00f to determine whether a Web Application Firewall was protecting the website. The result identified ModSecurity (SpiderLabs).
+Finally, I used DNSRecon to enumerate DNS records. The results provided information relating to name servers, mail servers, SPF/TXT records, service records and DNS software information.
+
+4.1.1 WHOIS Analysis
+
+command: whois networkwalks.com
+
+Domain Created: 2019-11-06
+
+Expiry Date: 2027-11-06
+
+Registrar: GoDaddy.com, LLC
+
+Registrant: Domains By Proxy, LLC (Privacy Protection)
+
+Name Servers: NS6135.HOSTGATOR.COM, NS6136.HOSTGATOR.COM, NS29.DOMAINCONTROL.COM, NS30.DOMAINCONTROL.COM
+
+DNSSEC: unsigned
+
+Status: clientDeleteProhibited, clientRenewProhibited, clientTransferProhibited, clientUpdateProhibited
+
+Analysis:
+The domain has been registered since 2019 and will expire in 2027. Privacy protection is enabled through Domains By Proxy, which hides the actual registrant's contact information. The domain is locked against unauthorized transfers and updates, which is a positive security measure.
+
+4.1.2 WhatWeb Analysis
+
+command: whois networkwalks.com
+
+Domain Created: 2019-11-06
+
+Expiry Date: 2027-11-06
+
+Registrar: GoDaddy.com, LLC
+
+Registrant: Domains By Proxy, LLC (Privacy Protection)
+
+Name Servers: NS6135.HOSTGATOR.COM, NS6136.HOSTGATOR.COM, NS29.DOMAINCONTROL.COM, NS30.DOMAINCONTROL.COM
+
+DNSSEC: unsigned
+
+Status: clientDeleteProhibited, clientRenewProhibited, clientTransferProhibited, clientUpdateProhibited
+
+Analysis:
+The domain has been registered since 2019 and will expire in 2027. Privacy protection is enabled through Domains By Proxy, which hides the actual registrant's contact information. The domain is locked against unauthorized transfers and updates, which is a positive security measure.
+
+4.1.3 Nslookup Analysis
+
+command: nslookup networkwalks.com
+
+Server:         192.168.0.1
+Address:        192.168.0.1#53
+
+Non-authoritative answer:
+Name:   networkwalks.com
+Address: 192.232.216.135
+
+Analysis:
+The domain resolves to IP address 192.232.216.135. The DNS query was handled by the local router (192.168.0.1) which forwarded the request to upstream DNS servers.
+
+The IP address reveals the server's location and can be used for further reconnaissance, including port scanning and service enumeration.
+
+4.1.4 Curl HTTP Header Analysis
+
+command: curl -I networkwalks.com
+
+HTTP/1.1 301 Moved Permanently
+Date: Thu, 20 Aug 2026 14:01:45 GMT
+Server: Apache
+Permissions-Policy: private-state-token-redemption=(self "https://www.google.com" 
+                     "https://www.gstatic.com" "https://recaptcha.net" 
+                     "https://challenges.cloudflare.com" "https://hcaptcha.com")
+Expires: Thu, 20 Aug 2026 15:01:45 GMT
+Cache-Control: max-age=3600
+X-Redirect-By: WordPress - Really Simple Security
+Set-Cookie: __wpdm_client=8780f3d9d328def1ddfe431769d6342a; path=/; 
+            domain=networkwalks.com; HttpOnly
+Upgrade: h2,h2c
+Connection: Upgrade
+Location: https://networkwalks.com/
+Referrer-Policy: no-referrer-when-downgrade
+X-Endurance-Cache-Level: 0
+X-nginx-cache: WordPress
+Content-Type: text/html; charset=UTF-8
+
+Analysis:
+The site performs a 301 redirect from HTTP to HTTPS, which is good security practice. The X-Redirect-By header reveals the "Really Simple Security" WordPress plugin is handling the redirect. The cookie __wpdm_client is set with HttpOnly flag, which provides some protection against XSS attacks. The X-nginx-cache header reveals Nginx caching is used.
+
+4.1.5 Wafw00f Analysis
+
+[*] Checking https://networkwalks.com
+[+] The site https://networkwalks.com is behind ModSecurity (SpiderLabs) WAF.
+[~] Number of requests: 2
+
+
+
+
+
+Analysis:
+The website is protected by ModSecurity Web Application Firewall from SpiderLabs. The WAF was identified after only 2 requests.
+
+
+
+4.1.6 DNSRecon Analysis
+
+command: dnsrecon -d networkwalks.com
+
+[*] SOA ns6135.hostgator.com 50.87.144.87
+[*] NS ns6135.hostgator.com 50.87.144.87
+[*] Bind Version for 50.87.144.87 "9.16.23-RH"
+[*] NS ns6136.hostgator.com 192.232.216.131
+[*] MX mail.networkwalks.com 192.232.216.135
+[*] A networkwalks.com 192.232.216.135
+[*] SRV _autodiscover._tcp.networkwalks.com cpanelemaildiscovery.cpanel.net 
+    184.94.204.9 443
+[*] SRV _autodiscover._tcp.networkwalks.com cpanelemaildiscovery.cpanel.net 
+    184.94.203.9 443
+[*] SRV _autodiscover._tcp.networkwalks.com cpanelemaildiscovery.cpanel.net 
+    184.94.204.11 443
+[*] SRV _autodiscover._tcp.networkwalks.com cpanelemaildiscovery.cpanel.net 
+    184.94.203.14 443
+[*] SRV _autodiscover._tcp.networkwalks.com cpanelemaildiscovery.cpanel.net 
+    184.94.204.15 443
+[*] SRV _autodiscover._tcp.networkwalks.com cpanelemaildiscovery.cpanel.net 
+    184.94.203.11 443
+[*] SRV _autodiscover._tcp.networkwalks.com cpanelemaildiscovery.cpanel.net 
+    184.94.203.15 443
+[*] SRV _autodiscover._tcp.networkwalks.com cpanelemaildiscovery.cpanel.net 
+    184.94.204.14 443
+[*] 8 Records Found
+
+Analysis:
+The DNS records reveal extensive infrastructure information. The BIND version is explicitly exposed, which is a security concern. The MX record points to the same IP as the web server, indicating the email and web services are hosted on the same server. The SRV records show the site uses cPanel for email services.
+
+4.2.1 Local Network Configuration
+
+command: ifconfig
+
+eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 192.168.0.11  netmask 255.255.255.0  broadcast 192.168.0.255
+        inet6 2001:e68:5450:1561:5ff1:6f1:fc7b:1684  prefixlen 64  scopeid 0x0<global>
+        inet6 2001:e68:5450:1561:20c:29ff:fe12:21ff  prefixlen 64  scopeid 0x0<global>
+        inet6 fe80::20c:29ff:fe12:21ff  prefixlen 64  scopeid 0x20<link>
+        ether 00:0c:29:12:21:ff  txqueuelen 1000  (Ethernet)
+        RX packets 30512  bytes 31955558 (30.4 MiB)
+        RX errors 18  dropped 19  overruns 0  frame 0
+        TX packets 14011  bytes 2672087 (2.5 MiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+        device interrupt 19  base 0x2000  
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 10  bytes 580 (580.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 10  bytes 580 (580.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+Findings:
+
+IP Address: 192.168.0.11
+
+Subnet Mask: 255.255.255.0 (/24)
+
+Broadcast Address: 192.168.0.255
+
+MAC Address: 00:0c:29:12:21:ff
+
+Network Interface: eth0 (Ethernet)
+
+Analysis:
+The Kali machine is on the 192.168.0.0/24 subnet with IP address 192.168.0.11. The subnet mask of 255.255.255.0 means the network can support up to 254 hosts (192.168.0.1 to 192.168.0.254).
+
+
+4.2 Network Scanning with Zenmap
+For the second activity, I used Nmap to perform network discovery on my local network. The practical required me to identify my local IP address and subnet, discover live hosts, and identify their IP and MAC addresses.
+Nmap scan report for 192.168.0.1 (192.168.0.1)
+Host is up (0.0025s latency).
+MAC Address: A4:2A:95:B2:A4:62 (D-Link International)
+Nmap scan report for ty_wr (192.168.0.2)
+Host is up (0.097s latency).
+MAC Address: 70:89:76:CE:C5:0A (Tuya Smart)
+Nmap scan report for redmi-13c (192.168.0.3)
+Host is up (0.11s latency).
+MAC Address: 9A:46:50:31:B3:EF (Unknown)
+Nmap scan report for mitv (192.168.0.4)
+Host is up (0.083s latency).
+MAC Address: 50:E4:78:69:4A:3F (Sichuan AI-Link Technology)
+Nmap scan report for redmi-15-5g (192.168.0.5)
+Host is up (0.097s latency).
+MAC Address: CA:3E:72:26:E1:1B (Unknown)
+Nmap scan report for 192.168.0.6 (192.168.0.6)
+Host is up (0.00018s latency).
+MAC Address: 70:08:94:2B:C1:AB (Liteon Technology)
+Nmap scan report for honor-x9c (192.168.0.7)
+Host is up (0.11s latency).
+MAC Address: 24:AE:CC:3D:E1:FB (Honor Device)
+Nmap scan report for win-9sulpohlo0j (192.168.0.9)
+Host is up (0.00017s latency).
+MAC Address: 00:0C:29:E6:FA:6B (VMware)
+Nmap scan report for laptop-3nbcjkco (192.168.0.11)
+Host is up.
+Nmap done: 256 IP addresses (9 hosts up) scanned in 4.07 seconds
+
+After completing the scan, I opened the Topology section in Zenmap, enabled the legend and saved the network topology in PDF format as required by the practical task.
+Note: The actual subnet, number of hosts and addresses should be replaced with the results from my own network when submitting the report.
+
+
+5. Risk Analysis / Impact
+Based on the information collected during the footprinting and network scanning activities, I identified the following potential risks.
+#
+Risk / Finding
+Evidence / Observation
+Potential Impact
+Risk Level
+1
+Multiple IoT devices on network
+Tuya Smart, Xiaomi TV discovered
+IoT devices often have poor security and can be used as entry points
+● Medium
+2
+Router manufacturer identified
+D-Link International (192.168.0.1)
+Consumer routers may have known vulnerabilities
+● Medium
+3
+Random MAC addresses detected
+Redmi 13C, Redmi 15 5G (locally administered MACs)
+Privacy feature used, but devices still need to be secured
+● Low
+4
+Multiple mobile devices
+3 smartphones detected
+Mobile devices may contain sensitive data
+● Low
+5
+VMware virtual machines
+Two VMs detected (Windows and Kali)
+VMs may have vulnerable services
+● Medium
+6
+Hostname exposure
+Hostnames reveal device types (redmi-13c, mitv, honor-x9c)
+Helps attackers identify devices for targeted attacks
+● Low
+7
+cPanel Control Panel Exposed
+Port 2083 open on networkwalks.com
+cPanel provides administrative access to the entire hosting account, including email, databases, DNS, and file management 
+● Critical
+8
+Recent cPanel Critical Vulnerability
+CVE-2026-41940 - Authentication bypass in cPanel/WHM 
+Unauthenticated attackers can gain full control panel access without credentials
+● Critical
+
+
+Risk level key:  ● Critical  ● Medium  ● Low
+The risks above are observations from the footprinting and scanning exercises, not confirmed vulnerabilities.
+The practical exercises primarily involved information gathering and host discovery. No exploitation or vulnerability validation was performed as part of these two modules.
+Therefore, the presence of information such as a software version, IP address or DNS record does not by itself mean that the system is vulnerable. Further authorized security testing would be required to confirm any actual vulnerability.
+
+6. Recommendations
+Based on the observations from these activities, I recommend the following security improvements:
+Review publicly exposed technology information
+Organizations should regularly review what information about their web technologies, CMS and plugins is publicly visible.
+Keep software updated
+CMS platforms, plugins and other web technologies should be regularly updated and reviewed against current security advisories.
+Review HTTP headers
+HTTP response headers should be reviewed to determine whether unnecessary technical information is being exposed.
+Review DNS records regularly
+DNS records should be checked periodically to ensure that only required information and services are publicly exposed.
+Properly configure and monitor the WAF
+Keep the WAF (ModSecurity) enabled and tuned, since it already blocks naive attacks.
+Perform regular internal network discovery
+Organizations should periodically scan their own networks to identify active devices.
+Investigate unknown devices
+Any unexpected device discovered during network scanning should be investigated and verified.
+Maintain network documentation
+Network topology and device information should be documented and updated regularly.
+Perform security testing with authorization
+Reconnaissance and scanning should only be performed against systems and networks where appropriate authorization has been provided.
+
+7. Conclusion
+During Week 2 of my Cybersecurity & Ethical Hacking internship, I completed practical activities covering footprinting, reconnaissance and network scanning.
+The exercises showed me that information gathering is an important part of cybersecurity. Even before attempting to exploit a system, a security professional can learn a significant amount about an environment by carefully analyzing publicly available information and network responses. The discovery of an exposed cPanel control panel with a critical known vulnerability demonstrates how passive reconnaissance can identify high-risk attack vectors.
+
+I also learned that technical findings should be documented clearly. A good cybersecurity report should explain what was performed, what was discovered, what the observation means, what risk it may create, and what can be done to reduce that risk.
+
+Finally, I learned that reconnaissance and scanning must always be performed within an authorized scope. These activities were completed as part of the assigned educational cybersecurity lab.
+
+8. Evidences Collected
+
+
+
+
+
+
+
+
+
+
+
+
+-End-
+
+
+👤 Author
+Syed Fareez Raziq
+LinkedIn: 
+
+📌 Project Information
+Program Name: Cybersecurity program at Networkwalks | Week: 02 | Repository: GitHub
+
