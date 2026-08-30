@@ -1,0 +1,210 @@
+PROJECT: PDF Password Cracking with Wordlists
+
+1. OBJECTIVE
+-------------------------------------------------------------------------------
+To crack three password-protected PDF files using dictionary attacks with 
+default wordlists from Kali Linux, demonstrating practical password security 
+assessment techniques.
+
+2. TARGET FILES
+-------------------------------------------------------------------------------
+- My Locked PDF1.pdf (267 KB)
+- My Locked PDF2.pdf (205 KB)  
+- My Locked PDF3.pdf (313 KB)
+
+3. TOOLS USED
+-------------------------------------------------------------------------------
+- Operating System: Kali Linux
+- Hash Extraction: pdf2john.pl (John the Ripper suite)
+- Password Cracking: John the Ripper
+- Wordlist: rockyou.txt (14 million+ common passwords)
+
+4. METHODOLOGY
+-------------------------------------------------------------------------------
+
+4.1 Initial Setup
+-----------------
+Verified target files in working directory:
+~/Downloads/weekkkk3/
+├── My Locked PDF1.pdf
+├── My Locked PDF2.pdf
+└── My Locked PDF3.pdf
+
+4.2 Hash Extraction
+-------------------
+Extracted password hashes from each PDF using pdf2john.pl:
+
+Command:
+/usr/share/john/pdf2john.pl "My Locked PDF1.pdf" > pdf1.hash
+/usr/share/john/pdf2john.pl "My Locked PDF2.pdf" > pdf2.hash
+/usr/share/john/pdf2john.pl "My Locked PDF3.pdf" > pdf3.hash
+
+Hash Format Verification (pdf1.hash):
+My Locked PDF1.pdf:$pdf$4*4*128*-1028*1*16*
+ca7f72f11459cba469f1005a8765ed51*32*
+f32d8fa1bfbe2648226dffc39f7909ea0021446990b9e4114071a4d9104984c1*32*
+9322f50c29569712067a775264635e4954ccb1b99e209d664984054ffad30a6a
+
+Analysis: 
+- $pdf$4 indicates PDF version 1.4-1.6 encryption
+- Revision 4 (AES-128 bit encryption)
+- SHA2 and RC4/AES encryption algorithms
+
+4.3 Wordlist Preparation
+------------------------
+Located and extracted rockyou.txt wordlist:
+
+# Check available wordlists
+ls -la /usr/share/wordlists/
+Total: 52,124 KB
+- rockyou.txt.gz (53,357,329 bytes)
+
+# Extract compressed wordlist
+sudo gunzip /usr/share/wordlists/rockyou.txt.gz
+
+# Verify extraction
+ls -la /usr/share/wordlists/rockyou.txt
+-rw-r--r-- 1 root root 139,921,498 May 7 06:16 /usr/share/wordlists/rockyou.txt
+
+Wordlist Statistics:
+- Total passwords: 14,344,391
+- File size: ~140 MB
+- Source: RockYou data breach (2009)
+
+4.4 Password Cracking Process
+-----------------------------
+Executed dictionary attack using John the Ripper:
+
+Command:
+john --wordlist=/usr/share/wordlists/rockyou.txt pdf1.hash
+
+John the Ripper Configuration:
+- Encoding: UTF-8
+- Hash Type: PDF [MD5 SHA2 RC4/AES 32/64]
+- Revision: 4
+- Threads: 8 OpenMP threads
+- Mode: Wordlist mode
+
+Results:
+
+PDF1 - Cracked Password:
+[INSERT PASSWORD HERE]
+Time to crack: [INSERT TIME]
+Attempts: [INSERT NUMBER]
+
+PDF2 - Cracked Password:
+[INSERT PASSWORD HERE]
+Time to crack: [INSERT TIME]
+Attempts: [INSERT NUMBER]
+
+PDF3 - Cracked Password:
+[INSERT PASSWORD HERE]
+Time to crack: [INSERT TIME]
+Attempts: [INSERT NUMBER]
+
+4.5 Verification
+----------------
+View cracked passwords:
+john --show pdf1.hash
+john --show pdf2.hash
+john --show pdf3.hash
+
+Tested each password to unlock corresponding PDF files:
+- Password 1: [PASSWORD] - SUCCESS
+- Password 2: [PASSWORD] - SUCCESS  
+- Password 3: [PASSWORD] - SUCCESS
+
+5. ALTERNATIVE APPROACH (Hashcat)
+-------------------------------------------------------------------------------
+For future reference, Hashcat provides faster GPU-accelerated cracking:
+
+# Clean hash (remove filename)
+cut -d':' -f2- pdf1.hash > pdf1_clean.hash
+
+# Crack with Hashcat
+hashcat -m 10500 -a 0 pdf1_clean.hash /usr/share/wordlists/rockyou.txt
+
+# Show cracked password
+hashcat -m 10500 --show pdf1_clean.hash
+
+6. SECURITY ANALYSIS
+-------------------------------------------------------------------------------
+
+6.1 Password Strength Assessment
+--------------------------------
+Cracked passwords reveal:
+[ANALYZE PASSWORDS - e.g.,]
+- Common dictionary words
+- Short length (< 8 characters)
+- No special characters
+- Easily guessable patterns
+
+6.2 Vulnerabilities Identified
+------------------------------
+- PDF encryption is only as strong as the password
+- Dictionary attacks effectively crack weak passwords
+- Default wordlists contain common password patterns
+- No rate limiting or lockout mechanisms in PDF encryption
+
+6.3 Recommendations
+-------------------
+For securing PDF files:
+1. Use passwords with > 12 characters
+2. Include uppercase, lowercase, numbers, and symbols
+3. Avoid dictionary words or common patterns
+4. Use passphrases instead of passwords
+5. Consider using password managers for complex passwords
+6. Implement additional encryption layers if possible
+
+7. LESSONS LEARNED
+-------------------------------------------------------------------------------
+- Password security relies heavily on password complexity
+- Default wordlists are effective against common passwords
+- PDF encryption is vulnerable to offline dictionary attacks
+- Time-based attacks are limited by computing power and wordlist size
+- Understanding attack methodologies helps in defense strategies
+
+8. TOOLS COMMAND REFERENCE
+-------------------------------------------------------------------------------
+# Extract PDF hash
+/usr/share/john/pdf2john.pl "filename.pdf" > hash.txt
+
+# Crack with John the Ripper
+john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+
+# Show cracked password
+john --show hash.txt
+
+# Crack with Hashcat
+hashcat -m 10500 -a 0 hash_clean.txt /usr/share/wordlists/rockyou.txt
+
+# Show Hashcat cracked password
+hashcat -m 10500 --show hash_clean.txt
+
+# Extract rockyou.txt
+sudo gunzip /usr/share/wordlists/rockyou.txt.gz
+
+# List all wordlists
+ls -la /usr/share/wordlists/
+
+9. REFERENCES
+-------------------------------------------------------------------------------
+- John the Ripper Documentation: https://www.openwall.com/john/
+- Hashcat Documentation: https://hashcat.net/wiki/
+- SecLists Wordlists: https://github.com/danielmiessler/SecLists
+- RockYou Wordlist: https://github.com/brannondorsey/naive-hashcat
+- PDF Encryption Standards: ISO 32000-1:2008
+
+10. CONCLUSION
+-------------------------------------------------------------------------------
+Successfully cracked all three PDF passwords using dictionary attacks with
+standard wordlists. This exercise demonstrates that weak passwords can be 
+compromised quickly using readily available tools and wordlists. The project
+highlights the importance of strong password policies and the effectiveness
+of dictionary attacks against common password patterns.
+
+The cracked passwords were:
+PDF1: good-luck - flag: nw{cybersecurity_flag_captured_2026}
+PDF2: password1 - flag: nw{networkwalks_persistence_jtr_270521}
+PDF3: 1qaz2wsx  - flag: nw{networkwalks_flag_260821_1}
+
