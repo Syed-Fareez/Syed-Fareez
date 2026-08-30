@@ -85,22 +85,6 @@ John the Ripper Configuration:
 - Threads: 8 OpenMP threads
 - Mode: Wordlist mode
 
-Results:
-
-PDF1 - Cracked Password:
-[INSERT PASSWORD HERE]
-Time to crack: [INSERT TIME]
-Attempts: [INSERT NUMBER]
-
-PDF2 - Cracked Password:
-[INSERT PASSWORD HERE]
-Time to crack: [INSERT TIME]
-Attempts: [INSERT NUMBER]
-
-PDF3 - Cracked Password:
-[INSERT PASSWORD HERE]
-Time to crack: [INSERT TIME]
-Attempts: [INSERT NUMBER]
 
 4.5 Verification
 ----------------
@@ -110,9 +94,9 @@ john --show pdf2.hash
 john --show pdf3.hash
 
 Tested each password to unlock corresponding PDF files:
-- Password 1: [PASSWORD] - SUCCESS
-- Password 2: [PASSWORD] - SUCCESS  
-- Password 3: [PASSWORD] - SUCCESS
+- Password 1: good-luck - SUCCESS
+- Password 2: password1 - SUCCESS  
+- Password 3: 1qaz2wsx - SUCCESS
 
 5. ALTERNATIVE APPROACH (Hashcat)
 -------------------------------------------------------------------------------
@@ -207,6 +191,3 @@ The cracked passwords were:
 PDF1: good-luck - flag: nw{cybersecurity_flag_captured_2026}
 PDF2: password1 - flag: nw{networkwalks_persistence_jtr_270521}
 PDF3: 1qaz2wsx  - flag: nw{networkwalks_flag_260821_1}
-
-
-![John the Ripper Results - Cracked Passwords](Screenshot%202026-08-30%20155325.png)
